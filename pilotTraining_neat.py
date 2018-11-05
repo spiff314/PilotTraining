@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 
 os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
  
+mapSize = 750
+
 """
 Game = ptt.game()
 #for i in range(0,3):
@@ -34,37 +36,51 @@ os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
 """
 
 def gauss(centerX,centerY,x,y,width,amplitude):
-      
+    
     return amplitude * np.exp( - ( (x-centerX)**2/(2*width**2) + (y-centerY)**2/(2*width**2)  ) )
-
+    
+    
 def potential(obsList,x,y):
     
     potVal = 0
-    
-    # Calculating the potential around each obs
-    for i in obsList:
-        xPos, yPos = i        
-        potVal += gauss(xPos,yPos,x,y,60,255)
-    
-    # Calculating the potential from the borders of the game
-    
     mapSize = 750
     
-    wall = np.array(range(0,mapSize))
     
+    for i in obsList:
+        xPos, yPos = i
+        
+        #Calculating the potential around each obs
+        #potVal += gauss(xPos,yPos,x,y,60,255)
+        
+        # Only interested in the maximum potential value
+        
+        potVal = max(potVal,gauss(xPos,yPos,x,y,60,255))
+        
+    
+    
+    # Check if the max potential value rises from one of the borders
+    potVal = max(potVal,gauss(0,y,x,y,60,255))
+    potVal = max(potVal,gauss(0,mapSize-y,x,y,60,255))
+    potVal = max(potVal,gauss(x,0,x,y,60,255))
+    potVal = max(potVal,gauss(mapSize-x,0,x,y,60,255))
+    
+    """
+    # Calculating the potential from the borders of the game
+    wall = np.array(range(0,mapSize))
     potVal += np.sum(gauss(0,wall,x,y,15,255))    
     potVal += np.sum(gauss(mapSize,wall,x,y,15,255))
     potVal += np.sum(gauss(wall,0,x,y,15,255))
     potVal += np.sum(gauss(wall,mapSize,x,y,15,255))
+    """
     
-    return -potVal
+    return potVal
     
        
 
 def eval_genomes(genomes, config):
     for genome_id, genome in genomes:
         
-        playerPotential = 0
+        
         #net = neat.nn.FeedForwardNetwork.create(genome, config)
         net = neat.nn.RecurrentNetwork.create(genome,config)
         Game = ptt.game()
@@ -112,10 +128,46 @@ def eval_genomes(genomes, config):
             
             #cv2.imshow("Padding",grayPadding)
             #cv2.imshow("grayBackground", grayBackground)
-            cv2.imshow("Game", background)
-            cv2.waitKey(10)
+            
             velocity = 2*20
             
+            positionsForPotential = [[playerPos[0]-2*velocity,  playerPos[1]-2*velocity],
+                                     [playerPos[0]-2*velocity,  playerPos[1]-velocity],
+                                     [playerPos[0]-2*velocity,  playerPos[1]],
+                                     [playerPos[0]-2*velocity,  playerPos[1]+velocity],
+                                     [playerPos[0]-2*velocity,  playerPos[1]+2*velocity],
+                                     [playerPos[0]-velocity,    playerPos[1]-2*velocity],
+                                     [playerPos[0]-velocity,    playerPos[1]-velocity],
+                                     [playerPos[0]-velocity,    playerPos[1]],
+                                     [playerPos[0]-velocity,    playerPos[1]+velocity],
+                                     [playerPos[0]-velocity,    playerPos[1]+2*velocity],
+                                     [playerPos[0],             playerPos[1]-2*velocity],
+                                     [playerPos[0],             playerPos[1]-velocity],
+                                     [playerPos[0],             playerPos[1]+velocity],
+                                     [playerPos[0],             playerPos[1]+2*velocity],
+                                     [playerPos[0]+velocity,    playerPos[1]-2*velocity],
+                                     [playerPos[0]+velocity,    playerPos[1]-velocity],
+                                     [playerPos[0]+velocity,    playerPos[1]],
+                                     [playerPos[0]+velocity,    playerPos[1]+velocity],
+                                     [playerPos[0]+velocity,    playerPos[1]+2*velocity],
+                                     [playerPos[0]+2*velocity,  playerPos[1]-2*velocity],
+                                     [playerPos[0]+2*velocity,  playerPos[1]-1*velocity],
+                                     [playerPos[0]+2*velocity,  playerPos[1]],
+                                     [playerPos[0]+2*velocity,  playerPos[1]+velocity],
+                                     [playerPos[0]+2*velocity,  playerPos[1]+2*velocity]]
+            
+            
+            inputs = []
+            for i in positionsForPotential:
+                if i[0] < mapSize and i[0] >= 0 and i[1] < mapSize and i[1] >= 0:
+                    #cv2.circle(background,(i[0],i[1]),5,(0,0,255),-1)
+                    pot = potential(posList,i[0],i[1])
+                    inputs.append(pot)
+                    #print(pot)
+                else:
+                    inputs.append(255)
+                    
+            """
             inputs = [(potential(posList,playerPos[0]-velocity,playerPos[1]-velocity)),
                       (potential(posList,playerPos[0]-2*velocity,playerPos[1]-2*velocity)),
                       (potential(posList,playerPos[0]-velocity,playerPos[1])),
@@ -132,11 +184,15 @@ def eval_genomes(genomes, config):
                       (potential(posList,playerPos[0]+2*velocity,playerPos[1])),
                       (potential(posList,playerPos[0]+velocity,playerPos[1]+velocity)),
                       (potential(posList,playerPos[0]+2*velocity,playerPos[1]+2*velocity))]
+            """
             
             #print("Size = ", grayBackground.reshape((2500,1)).shape)
             #inputs = grayBackground.reshape((grayBackground.shape[0]*grayBackground.shape[1],1))
-            playerPotential += potential(posList,playerPos[0],playerPos[1])+300
             
+            
+            
+            cv2.imshow("Game", background)
+            cv2.waitKey(10)
             
             #output = net.activate(np.array(posList).flatten())
             output = net.activate(inputs)
@@ -157,9 +213,7 @@ def eval_genomes(genomes, config):
                 print("Survived more than 100.000 frames!")
                 alive = False
             
-        #print(score)
         print(score)
-        #genome.fitness = playerPotential 
         genome.fitness = float(score)
         del(Game) 
             

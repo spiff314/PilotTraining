@@ -173,7 +173,7 @@ class game(object):
         
 
         # Player
-        self.player1 = player(self.background,int(width/2),400,cyan)
+        self.player1 = player(self.background,int(width/2),int(height/2),cyan)
         self.velocity = 20
         self.maxNumberOfCamperFrames = 1000
         self.playerPositionList = []
