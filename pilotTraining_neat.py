@@ -35,34 +35,47 @@ os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
 
 """
 
+
 def gauss(centerX,centerY,x,y,width,amplitude):
     
     return amplitude * np.exp( - ( (x-centerX)**2/(2*width**2) + (y-centerY)**2/(2*width**2)  ) )
     
     
-def potential(obsList,x,y):
+def potential(obsList,x,y,velocityList):
     
     potVal = 0
     mapSize = 750
     
-    
-    for i in obsList:
-        xPos, yPos = i
+    for i in  range(0,len(obsList)):
+    #for i in obsList:
+        xPos, yPos = obsList[i]
+        xVel, yVel = velocityList[i]
+        amplitude = 255
+        width = 255
         
+        
+        #xVel, 
         #Calculating the potential around each obs
         #potVal += gauss(xPos,yPos,x,y,60,255)
         
-        # Only interested in the maximum potential value
+        # Angle between the velocity vector of the obstacle and 'retningsvektor' to the player
+        r = np.array([x-xPos,y-yPos])
+        v = np.array([xVel,yVel])
+        dot = np.dot(r,v)
         
-        potVal = max(potVal,gauss(xPos,yPos,x,y,60,255))
+        angle = np.arccos( dot / (np.linalg.norm(r)*np.linalg.norm(v)))
+        
+        if np.abs(angle) < np.pi/4:
+            # Only interested in the maximum potential value
+            potVal = max(potVal,gauss(xPos,yPos,x,y,width,amplitude))
         
     
     
     # Check if the max potential value rises from one of the borders
-    potVal = max(potVal,gauss(0,y,x,y,60,255))
-    potVal = max(potVal,gauss(0,mapSize-y,x,y,60,255))
-    potVal = max(potVal,gauss(x,0,x,y,60,255))
-    potVal = max(potVal,gauss(mapSize-x,0,x,y,60,255))
+    #potVal = max(potVal,gauss(0,y,x,y,60,255))
+    #potVal = max(potVal,gauss(0,mapSize-y,x,y,60,255))
+    #potVal = max(potVal,gauss(x,0,x,y,60,255))
+    #potVal = max(potVal,gauss(mapSize-x,0,x,y,60,255))
     
     """
     # Calculating the potential from the borders of the game
@@ -86,51 +99,12 @@ def eval_genomes(genomes, config):
         Game = ptt.game()
         alive = True
         direction = ""
+        potentialScore = 0
         
         while alive:
-            background, score, alive, posList, playerPos = Game.evovle_game(direction)
-            
-            """
-            #Showin the potential landscape
-            potentialLandscape = np.zeros((500,500), np.float64)
-            # Painting the potential
-            for x in range(0,500):
-                for y in range(0,500):
-                    pot = potential(posList,x,y)
-                    #print(pot)
-                    potentialLandscape[y,x] =pot# np.array([pot,pot,pot])
-            
-            cv2.imshow("potentialLandscape",potentialLandscape)
-            cv2.imshow("Game", background)
-            plt.figure()
-            #plt.imshow(np.sqrt(np.sqrt(potentialLandscape/np.max(potentialLandscape))),cmap = "hot")
-            plt.imshow(potentialLandscape,vmin=0,vmax=np.max(potentialLandscape))
-            plt.colorbar()        
-            cv2.waitKey(0)
-            """
-            
-            """
-            newDim = 50
-            padDim = 120
-            grayPadding = np.zeros((padDim,padDim), np.uint8)
-            grayBackground = cv2.cvtColor(background,cv2.COLOR_BGR2GRAY)
-            grayBackground = cv2.resize(grayBackground,(newDim,newDim))
-            
-            invDirectionX = (playerPos[0]/750.0)
-            invDirectionY = (playerPos[1]/750.0)
-            offsetY = int(padDim/2-int(newDim*invDirectionY))
-            offsetX = int(padDim/2-int(newDim*invDirectionX))
-            
-            
-            grayPadding[offsetY:offsetY+grayBackground.shape[0],offsetX:offsetX+grayBackground.shape[1]] = grayBackground
-            grayBackground = grayPadding[int(padDim/2-newDim/2):int(padDim/2+newDim/2),int(padDim/2-newDim/2):int(padDim/2+newDim/2)]
-            """
-            
-            #cv2.imshow("Padding",grayPadding)
-            #cv2.imshow("grayBackground", grayBackground)
-            
-            velocity = 2*20
-            
+            background, score, alive, posList, playerPos, velList = Game.evovle_game(direction)
+                                 
+            velocity = 2*20             # X                             Y
             positionsForPotential = [[playerPos[0]-2*velocity,  playerPos[1]-2*velocity],
                                      [playerPos[0]-2*velocity,  playerPos[1]-velocity],
                                      [playerPos[0]-2*velocity,  playerPos[1]],
@@ -161,60 +135,69 @@ def eval_genomes(genomes, config):
             for i in positionsForPotential:
                 if i[0] < mapSize and i[0] >= 0 and i[1] < mapSize and i[1] >= 0:
                     #cv2.circle(background,(i[0],i[1]),5,(0,0,255),-1)
-                    pot = potential(posList,i[0],i[1])
+                    pot = potential(posList,i[0],i[1],velList)
                     inputs.append(pot)
                     #print(pot)
                 else:
                     inputs.append(255)
-                    
-            """
-            inputs = [(potential(posList,playerPos[0]-velocity,playerPos[1]-velocity)),
-                      (potential(posList,playerPos[0]-2*velocity,playerPos[1]-2*velocity)),
-                      (potential(posList,playerPos[0]-velocity,playerPos[1])),
-                      (potential(posList,playerPos[0]-2*velocity,playerPos[1])),
-                      (potential(posList,playerPos[0]-velocity,playerPos[1]+velocity)),
-                      (potential(posList,playerPos[0]-2*velocity,playerPos[1]+2*velocity)),
-                      (potential(posList,playerPos[0],playerPos[1]-velocity)),
-                      (potential(posList,playerPos[0],playerPos[1]-2*velocity)),
-                      (potential(posList,playerPos[0],playerPos[1]+velocity)),
-                      (potential(posList,playerPos[0],playerPos[1]+2*velocity)),
-                      (potential(posList,playerPos[0]+velocity,playerPos[1]-velocity)),
-                      (potential(posList,playerPos[0]+2*velocity,playerPos[1]-2*velocity)),
-                      (potential(posList,playerPos[0]+velocity,playerPos[1])),
-                      (potential(posList,playerPos[0]+2*velocity,playerPos[1])),
-                      (potential(posList,playerPos[0]+velocity,playerPos[1]+velocity)),
-                      (potential(posList,playerPos[0]+2*velocity,playerPos[1]+2*velocity))]
-            """
+                               
+            """     
+            #Showing the potential landscape
+            potentialLandscape = np.zeros((mapSize,mapSize), np.float64)
+            # Painting the potential
+            for x in range(0,mapSize):
+                for y in range(0,mapSize):
+                    pot = potential(posList,x,y,velList)
+                    #print(pot)
+                    potentialLandscape[y,x] =pot# np.array([pot,pot,pot])
             
-            #print("Size = ", grayBackground.reshape((2500,1)).shape)
-            #inputs = grayBackground.reshape((grayBackground.shape[0]*grayBackground.shape[1],1))
-            
-            
-            
+            cv2.imshow("potentialLandscape",potentialLandscape)
             cv2.imshow("Game", background)
-            cv2.waitKey(10)
+            plt.figure()
+            #plt.imshow(np.sqrt(np.sqrt(potentialLandscape/np.max(potentialLandscape))),cmap = "hot")
+            plt.imshow(potentialLandscape,vmin=0,vmax=np.max(potentialLandscape))
+            plt.colorbar()        
+            cv2.waitKey(0) 
+            """
+
+                       
+            #cv2.imshow("Game", background)
+            #cv2.waitKey(10)
             
             #output = net.activate(np.array(posList).flatten())
             output = net.activate(inputs)
             
+            potentialAtOldLocation = potential(posList,playerPos[0],playerPos[1],velList)
+            potentialAtNewLocation = potentialAtOldLocation
+            
             action = np.argmax(output)
             if action == 0 and output[action] > 0.95:
                 direction = "w"
+                potentialAtNewLocation = potential(posList,playerPos[0],playerPos[1]-velocity,velList)
             elif action == 1 and output[action] > 0.95:
                 direction = "s"
+                potentialAtNewLocation = potential(posList,playerPos[0],playerPos[1]+velocity,velList)
             elif action == 2 and output[action] > 0.95:
                 direction = "a"
+                potentialAtNewLocation = potential(posList,playerPos[0]-velocity,playerPos[1],velList)
             elif action == 3 and output[action] > 0.95:
                 direction = "d"
+                potentialAtNewLocation = potential(posList,playerPos[0]+velocity,playerPos[1],velList)
             
             
             #Kill it if it reaches 100k
             if score >= 100000:
                 print("Survived more than 100.000 frames!")
                 alive = False
-            
-        print(score)
-        genome.fitness = float(score)
+        
+            diffInPotentialAtLocations = potentialAtNewLocation - potentialAtOldLocation
+            if diffInPotentialAtLocations <= 0: potentialScore -= diffInPotentialAtLocations/255.0
+        
+        #print(score,potentialScore)
+        
+        #genome.fitness = float(score + potentialScore)
+        #print(potentialScore)
+        genome.fitness = float(potentialScore)
         del(Game) 
             
             
@@ -225,14 +208,18 @@ def run(config_file):
                          config_file)
     # Create the population, which is the top-level object for a NEAT run.
     p = neat.Population(config)
+    
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
     p.add_reporter(neat.Checkpointer(5))
-    # Run for up to 300 generations.
+    
+    # Run for up to 1500 generations.
     winner = p.run(eval_genomes, 1500)
+    
     # Display the winning genome.
+    
     print('\nBest genome:\n{!s}'.format(winner))
     # Show output of the most fit genome against training data.
     print('\nOutput:')

@@ -66,6 +66,9 @@ class obstacles(object):
     def getPos(self):
         return (self.posX,self.posY)
     
+    def getVel(self):
+        return (self.velX,self.velY)
+    
     def getRad(self):
         return self.rad
         
@@ -182,6 +185,8 @@ class game(object):
     def evovle_game(self,direction): # Direction is a string ("w","s","a","d")
         
         self.posList = []
+        self.velList = []
+        
         alive = True
         
         #Draw obstacles and checks for collisions
@@ -210,6 +215,9 @@ class game(object):
         #self.posList.append(self.player1.getPos())
         for i in self.obsList:
             self.posList.append(i.getPos())
+            
+        for i in self.obsList:
+            self.velList.append(i.getVel())
         
         # Tracking player movement
         self.playerPositionList.insert(0,self.player1.getPos())
@@ -226,7 +234,7 @@ class game(object):
         
         
         #cv2.destroyAllWindows()
-        return self.background, self.score, alive, self.posList, self.player1.getPos()
+        return self.background, self.score, alive, self.posList, self.player1.getPos(), self.velList
 
 
 if __name__ == '__main__':
